@@ -2,7 +2,7 @@
 %TAG !u! tag:unity3d.com,2011:
 --- !u!78 &1
 TagManager:
-  serializedVersion: 2
+  serializedVersion: 3
   tags: []
   layers:
   - Default
@@ -41,3 +41,17 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
+  - name: Space
+    uniqueID: 3638512309
+    locked: 0
+  - name: Down_Lands
+    uniqueID: 4091478695
+    locked: 0
+  - name: Enties
+    uniqueID: 3756325351
+    locked: 0
+  - name: Upper_Lands
+    uniqueID: 578151185
+    locked: 0
+  m_RenderingLayers:
+  - Default
