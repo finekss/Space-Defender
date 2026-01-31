@@ -67,5 +67,5 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "Space_defender.slnx"
+    "dotnet.defaultSolution": "Space_Defender.slnx"
 }
