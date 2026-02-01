@@ -3,7 +3,13 @@ using System.Collections.Generic;
 
 public class MapManager : MonoBehaviour
 {
+    [Header("Terrain Tilemap")]
     [SerializeField] private DualGridTilemap dualGridTilemap;
+    
+    [Header("Space Background")]
+    [SerializeField] private SpaceTilemapGenerator spaceTilemapGenerator;
+    
+    [Header("Chunk Settings")]
     [SerializeField] private float chunkHeight = 16f; // Должен соответствовать chunkHeight в DualGridTilemap
     [SerializeField] private int chunksToLoadAboveScreen = 3; // Сколько чанков загружать выше
     [SerializeField] private int chunksToLoadBelowScreen = 2; // Сколько чанков загружать ниже
@@ -21,9 +27,12 @@ public class MapManager : MonoBehaviour
         if (dualGridTilemap == null)
             dualGridTilemap = GetComponent<DualGridTilemap>();
 
-        if (dualGridTilemap == null)
+        if (spaceTilemapGenerator == null)
+            spaceTilemapGenerator = GetComponent<SpaceTilemapGenerator>();
+
+        if (dualGridTilemap == null && spaceTilemapGenerator == null)
         {
-            Debug.LogError("MapManager: DualGridTilemap не найден! Добавь его на этот объект или присвой в инспекторе.");
+            Debug.LogError("MapManager: Ни DualGridTilemap, ни SpaceTilemapGenerator не найдены!");
             return;
         }
 
@@ -46,10 +55,14 @@ public class MapManager : MonoBehaviour
 
     void UpdateLoadedChunks()
     {
-        if (dualGridTilemap == null) return;
+        if ((dualGridTilemap == null && spaceTilemapGenerator == null) || cam == null) return;
 
-        // Получаем позицию тайлмапа
-        float tilemapY = dualGridTilemap.displayTilemap.transform.position.y;
+        // Получаем позицию тайлмапа (используем DualGrid если есть, иначе SpaceGenerator)
+        float tilemapY = 0;
+        if (dualGridTilemap != null && dualGridTilemap.displayTilemap != null)
+            tilemapY = dualGridTilemap.displayTilemap.transform.position.y;
+        else if (spaceTilemapGenerator != null)
+            tilemapY = spaceTilemapGenerator.transform.position.y;
         
         // Получаем границы видимости камеры в мировых координатах
         Vector3 camTop = cam.ViewportToWorldPoint(new Vector3(0.5f, 1, cam.nearClipPlane));
@@ -95,7 +108,14 @@ public class MapManager : MonoBehaviour
                     if (debugMode)
                         Debug.Log($"★ Loading chunk ({chunkX}, {chunkY})");
 
-                    dualGridTilemap.CreateChunk(chunkX, chunkY);
+                    // Загружаем terrain чанк если есть DualGridTilemap
+                    if (dualGridTilemap != null)
+                        dualGridTilemap.CreateChunk(chunkX, chunkY);
+                    
+                    // Загружаем space чанк если есть SpaceTilemapGenerator
+                    if (spaceTilemapGenerator != null)
+                        spaceTilemapGenerator.CreateChunk(chunkX, chunkY);
+
                     loadedChunks.Add(chunkCoord);
                 }
             }
@@ -120,7 +140,14 @@ public class MapManager : MonoBehaviour
             if (debugMode)
                 Debug.Log($"★ Unloading and destroying chunk ({chunkCoord.x}, {chunkCoord.y})");
 
-            dualGridTilemap.DestroyChunk(chunkCoord.x, chunkCoord.y);
+            // Удаляем terrain чанк
+            if (dualGridTilemap != null)
+                dualGridTilemap.DestroyChunk(chunkCoord.x, chunkCoord.y);
+            
+            // Удаляем space чанк
+            if (spaceTilemapGenerator != null)
+                spaceTilemapGenerator.DestroyChunk(chunkCoord.x, chunkCoord.y);
+
             loadedChunks.Remove(chunkCoord);
         }
     }

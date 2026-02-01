@@ -72,10 +72,16 @@ public class DualGridTilemap : MonoBehaviour {
             return cachedType;
 
         TileType type;
-        if (placeholderTilemap.GetTile(coords) == grassPlaceholderTile)
+        TileBase tile = placeholderTilemap.GetTile(coords);
+        
+        if (tile == null)
+            type = None; // Пустая ячейка
+        else if (tile == grassPlaceholderTile)
             type = Grass;
-        else
+        else if (tile == dirtPlaceholderTile)
             type = Dirt;
+        else
+            type = None; // Неизвестный тайл
 
         placeholderCache[coords] = type;
         return type;
@@ -88,7 +94,21 @@ public class DualGridTilemap : MonoBehaviour {
         TileType botRight = getPlaceholderTileTypeAt(coords - NEIGHBOURS[2]);
         TileType botLeft = getPlaceholderTileTypeAt(coords - NEIGHBOURS[3]);
 
+        // Если все соседи пустые - не рисуем ничего
+        if (topRight == None && topLeft == None && botRight == None && botLeft == None)
+            return null;
+
+        // Для расчёта переходов заменяем None на Dirt (земля по умолчанию)
+        if (topRight == None) topRight = Dirt;
+        if (topLeft == None) topLeft = Dirt;
+        if (botRight == None) botRight = Dirt;
+        if (botLeft == None) botLeft = Dirt;
+
         Tuple<TileType, TileType, TileType, TileType> neighbourTuple = new(topLeft, topRight, botLeft, botRight);
+
+        // Если такой комбинации нет в словаре, не рисуем ничего
+        if (!neighbourTupleToTile.ContainsKey(neighbourTuple))
+            return null;
 
         return neighbourTupleToTile[neighbourTuple];
     }
@@ -119,6 +139,27 @@ public class DualGridTilemap : MonoBehaviour {
         if (chunkObjects.ContainsKey(chunkCoord))
             return chunkObjects[chunkCoord];
 
+        // Проверяем есть ли вообще тайлы в placeholder в этой области
+        int minX = chunkX * chunkWidth;
+        int minY = chunkY * chunkHeight;
+        int maxX = minX + chunkWidth;
+        int maxY = minY + chunkHeight;
+        
+        bool hasAnyTiles = false;
+        for (int x = minX; x < maxX && !hasAnyTiles; x++) {
+            for (int y = minY; y < maxY; y++) {
+                if (placeholderTilemap.HasTile(new Vector3Int(x, y, 0))) {
+                    hasAnyTiles = true;
+                    break;
+                }
+            }
+        }
+        
+        // Если в placeholder нет тайлов в этой области - не создаём чанк
+        if (!hasAnyTiles) {
+            return null;
+        }
+
         // Создаём GameObject для чанка
         GameObject chunkObj = new GameObject($"Chunk_{chunkX}_{chunkY}");
         chunkObj.transform.parent = transform;
@@ -139,16 +180,13 @@ public class DualGridTilemap : MonoBehaviour {
         }
 
         // Заполняем чанк тайлами
-        int minX = chunkX * chunkWidth;
-        int minY = chunkY * chunkHeight;
-        int maxX = minX + chunkWidth;
-        int maxY = minY + chunkHeight;
-
         for (int x = minX; x < maxX; x++) {
             for (int y = minY; y < maxY; y++) {
                 Vector3Int pos = new Vector3Int(x, y, 0);
                 Tile tile = calculateDisplayTile(pos);
-                chunkTilemap.SetTile(pos, tile);
+                if (tile != null) {
+                    chunkTilemap.SetTile(pos, tile);
+                }
             }
         }
 
