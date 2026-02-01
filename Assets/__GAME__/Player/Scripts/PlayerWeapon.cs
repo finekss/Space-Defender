@@ -8,6 +8,7 @@ public class PlayerWeapon : MonoBehaviour
     [SerializeField] private GameObject bulletPrefab; // Префаб снаряда
     [SerializeField] private float bulletSpeed = 20f;
     [SerializeField] private float maxBulletDistance = 20f; // Максимальная дистанция полёта пули
+    [SerializeField] private float bulletDamage = 5f; // Урон пули
     
     [Header("Auto Shoot")]
     [SerializeField] private bool autoShootEnabled = true; // Авто стрельба как в Star Soldier
@@ -49,6 +50,7 @@ public class PlayerWeapon : MonoBehaviour
             bulletComponent = bullet.AddComponent<Bullet>();
         }
         bulletComponent.SetMaxDistance(maxBulletDistance);
+        bulletComponent.SetDamage(bulletDamage);
 
         // Если есть Rigidbody2D, даём ему скорость
         Rigidbody2D bulletRb = bullet.GetComponent<Rigidbody2D>();
@@ -74,5 +76,13 @@ public class PlayerWeapon : MonoBehaviour
     public void SetFireRate(float rate)
     {
         fireRate = Mathf.Max(0.01f, rate);
+    }
+
+    /// <summary>
+    /// Установить урон пули
+    /// </summary>
+    public void SetBulletDamage(float damage)
+    {
+        bulletDamage = Mathf.Max(0.1f, damage);
     }
 }
