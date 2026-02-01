@@ -25,6 +25,16 @@ public class DualGridTilemap : MonoBehaviour {
     // Provide the 16 tiles in the inspector
     public Tile[] tiles;
 
+    // Chunk settings
+    public int chunkWidth = 16;
+    public int chunkHeight = 16;
+
+    // Кэш плейсхолдер тайлов для быстрого доступа
+    private Dictionary<Vector3Int, TileType> placeholderCache = new Dictionary<Vector3Int, TileType>();
+    
+    // Чанки (key = Vector2Int(chunkX, chunkY), value = GameObject чанка)
+    private Dictionary<Vector2Int, GameObject> chunkObjects = new Dictionary<Vector2Int, GameObject>();
+
     void Start() {
         // This dictionary stores the "rules", each 4-neighbour configuration corresponds to a tile
         // |_1_|_2_|
@@ -47,7 +57,8 @@ public class DualGridTilemap : MonoBehaviour {
             {new (Grass, Dirt, Dirt, Grass), tiles[4]}, // DUAL_DOWN_RIGHT
             {new (Dirt, Dirt, Dirt, Dirt), tiles[12]},
         };
-        RefreshDisplayTilemap();
+        
+        // Не вызываем RefreshDisplayTilemap, теперь чанки создаются по требованию
     }
 
     public void SetCell(Vector3Int coords, Tile tile) {
@@ -56,10 +67,18 @@ public class DualGridTilemap : MonoBehaviour {
     }
 
     private TileType getPlaceholderTileTypeAt(Vector3Int coords) {
+        // Проверяем кэш
+        if (placeholderCache.TryGetValue(coords, out TileType cachedType))
+            return cachedType;
+
+        TileType type;
         if (placeholderTilemap.GetTile(coords) == grassPlaceholderTile)
-            return Grass;
+            type = Grass;
         else
-            return Dirt;
+            type = Dirt;
+
+        placeholderCache[coords] = type;
+        return type;
     }
 
     protected Tile calculateDisplayTile(Vector3Int coords) {
@@ -88,6 +107,81 @@ public class DualGridTilemap : MonoBehaviour {
                 setDisplayTile(new Vector3Int(i, j, 0));
             }
         }
+    }
+
+    /// <summary>
+    /// Создаёт чанк (отдельный GameObject с Tilemap) и заполняет его тайлами
+    /// </summary>
+    public GameObject CreateChunk(int chunkX, int chunkY) {
+        Vector2Int chunkCoord = new Vector2Int(chunkX, chunkY);
+        
+        // Если чанк уже существует, не создаём
+        if (chunkObjects.ContainsKey(chunkCoord))
+            return chunkObjects[chunkCoord];
+
+        // Создаём GameObject для чанка
+        GameObject chunkObj = new GameObject($"Chunk_{chunkX}_{chunkY}");
+        chunkObj.transform.parent = transform;
+        chunkObj.transform.localPosition = Vector3.zero;
+
+        // Добавляем компоненты
+        Grid grid = chunkObj.AddComponent<Grid>();
+        Tilemap chunkTilemap = chunkObj.AddComponent<Tilemap>();
+        TilemapRenderer renderer = chunkObj.AddComponent<TilemapRenderer>();
+        
+        // Копируем настройки рендерера
+        if (displayTilemap != null && displayTilemap.GetComponent<TilemapRenderer>() != null)
+        {
+            TilemapRenderer sourceRenderer = displayTilemap.GetComponent<TilemapRenderer>();
+            renderer.sortingLayerID = sourceRenderer.sortingLayerID;
+            renderer.sortingOrder = sourceRenderer.sortingOrder;
+            renderer.material = sourceRenderer.material;
+        }
+
+        // Заполняем чанк тайлами
+        int minX = chunkX * chunkWidth;
+        int minY = chunkY * chunkHeight;
+        int maxX = minX + chunkWidth;
+        int maxY = minY + chunkHeight;
+
+        for (int x = minX; x < maxX; x++) {
+            for (int y = minY; y < maxY; y++) {
+                Vector3Int pos = new Vector3Int(x, y, 0);
+                Tile tile = calculateDisplayTile(pos);
+                chunkTilemap.SetTile(pos, tile);
+            }
+        }
+
+        chunkObjects[chunkCoord] = chunkObj;
+        return chunkObj;
+    }
+
+    /// <summary>
+    /// Удаляет чанк из сцены
+    /// </summary>
+    public void DestroyChunk(int chunkX, int chunkY) {
+        Vector2Int chunkCoord = new Vector2Int(chunkX, chunkY);
+        
+        if (chunkObjects.TryGetValue(chunkCoord, out GameObject chunkObj))
+        {
+            Destroy(chunkObj);
+            chunkObjects.Remove(chunkCoord);
+        }
+    }
+
+    /// <summary>
+    /// Обновляет только тайлы в указанном чанке для оптимизации (устаревший метод)
+    /// </summary>
+    public void RefreshChunk(int chunkX, int chunkY) {
+        // Теперь создаём чанк если его нет
+        CreateChunk(chunkX, chunkY);
+    }
+
+    /// <summary>
+    /// Сбрасывает кэш плейсхолдер тайлов (используй если меняешь тайлмап в рантайме)
+    /// </summary>
+    public void ClearCache() {
+        placeholderCache.Clear();
     }
 }
 
